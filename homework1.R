@@ -5,14 +5,28 @@ library(MASS)
 #           df: a data frame with n rows.
 # Output:   a data frame with n rows obtained from the input dataframe by sampling rows with replacement.
 df_resample = function(df){
-
+    
+    n = dim(df)[1]
+    samples = sample(1:n, n, replace = T)
+    
+    df_new = df[samples,]
+    rownames(df_new) = 1:n
+    
+    df_new
 }
 
 # Input:
 #           mat: a data matrix with n rows and k columns (rows are samples, columns are variables).
 # Output:   a data frame with column (variable) names "x1" to "xk", and data from the matrix.
 df_make = function(mat){
-
+    
+    k = dim(mat)[2]
+    names = paste("x", 1:k, sep = "")
+    
+    df = as.data.frame(mat)
+    colnames(df) = names
+    
+    df
 }
 
 # Input:
@@ -26,7 +40,18 @@ df_make = function(mat){
 #           q and 1-q quantiles (second and third elements) of the empirical
 #           bootstrap distribution, and the size of the confidence interval.       
 bootstrap_ci = function(df, k, f, q){
-
+    
+    interest = f(df)
+    bs_va = c()
+    for(i in 1:k){
+        bs_va = c(bs_va, f( df_resample(df) ) - interest)
+    }
+    
+    interval = quantile(bs_va, c(q, 1-q)) + interest
+    res = c(interest, interval, interval[2]-interval[1])
+    names(res) = c()
+    
+    res
 }
 
 # Input:
@@ -48,7 +73,28 @@ logisprob = function(x, w){
 #           A row vector of weights for a logistic regression model (with no intercept)
 #           maximizing the likelihood of observing the data.
 logisreg = function(X, y, A, tol = 0.01){
+    #logisgradient = logisprob * (1-logisprob) * Xi
     
+    n = dim(X)[1]; k = dim(X)[2]
+    w = rep(0,k)
+    
+    while(TRUE){
+        F.x = rep(0, k); F.x.grad = matrix(0, k, k)
+        for(i in 1:n){
+          mui = c(logisprob(X[i,], w))
+          F.x = F.x + (y[i] - mui) * A(X[i,]) 
+          F.x.grad = F.x.grad - mui * (1-mui) * A(X[i,]) %*% t(X[i,])
+        }
+        w_new = w - solve(F.x.grad) %*% F.x
+        
+        if(sum(abs(w_new - w)) < tol){
+            w = w_new
+            break
+        }
+        w = w_new
+    }
+    
+    w
 }
 
 # Input:
